@@ -3,7 +3,8 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth import login
 from django.db.models import Sum
-from django.core.paginator import Paginator # Importe o Paginator
+from django.core.paginator import Paginator
+from django.contrib import messages # Importe o messages framework
 from .models import Transacao
 from .forms import TransacaoForm
 from decimal import Decimal
@@ -21,33 +22,6 @@ def register(request):
     else:
         form = UserCreationForm()
     return render(request, 'registration/register.html', {'form': form})
-
-@login_required
-def edit_transacao(request, pk):
-    transacao = get_object_or_404(Transacao, pk=pk, user=request.user)
-    if request.method == 'POST':
-        form = TransacaoForm(request.POST, instance=transacao)
-        if form.is_valid():
-            form.save()
-            return redirect('index')
-    else:
-        form = TransacaoForm(instance=transacao)
-    context = {
-        'form': form,
-        'transacao': transacao
-    }
-    return render(request, 'core/edit_transacao.html', context)
-
-@login_required
-def delete_transacao(request, pk):
-    transacao = get_object_or_404(Transacao, pk=pk, user=request.user)
-    if request.method == 'POST':
-        transacao.delete()
-        return redirect('index')
-    context = {
-        'transacao': transacao
-    }
-    return render(request, 'core/delete_confirm.html', context)
 
 @login_required
 def relatorios(request):
@@ -79,7 +53,8 @@ def relatorios(request):
     }
     return render(request, 'core/relatorios.html', context)
 
-# --- VIEW PRINCIPAL ATUALIZADA COM PAGINAÇÃO ---
+# --- VIEWS DE AÇÃO ATUALIZADAS COM MENSAGENS ---
+
 @login_required
 def index(request):
     if request.method == 'POST':
@@ -88,23 +63,17 @@ def index(request):
             transacao = form.save(commit=False)
             transacao.user = request.user
             transacao.save()
+            # Adiciona uma mensagem de sucesso
+            messages.success(request, 'Transação adicionada com sucesso!')
             return redirect('index')
     else:
         form = TransacaoForm()
 
-    # 1. Obter a lista completa de transações
     lista_transacoes = Transacao.objects.filter(user=request.user)
-    
-    # 2. Criar o objeto Paginator (10 itens por página)
     paginador = Paginator(lista_transacoes, 10)
-    
-    # 3. Obter o número da página da URL (ex: ?page=2)
     numero_pagina = request.GET.get('page')
-    
-    # 4. Obter o objeto da página para o número solicitado
     transacoes_pagina = paginador.get_page(numero_pagina)
 
-    # Cálculo do saldo total (continua a usar a lista completa)
     saldo_total = Decimal('0.00')
     for transacao in lista_transacoes:
         if transacao.tipo == 'Receita':
@@ -113,8 +82,40 @@ def index(request):
             saldo_total -= transacao.valor
             
     context = {
-        'transacoes': transacoes_pagina, # Passa o objeto da página para o template
+        'transacoes': transacoes_pagina,
         'form': form,
         'saldo_total': saldo_total,
     }
     return render(request, 'core/index.html', context)
+
+@login_required
+def edit_transacao(request, pk):
+    transacao = get_object_or_404(Transacao, pk=pk, user=request.user)
+    if request.method == 'POST':
+        form = TransacaoForm(request.POST, instance=transacao)
+        if form.is_valid():
+            form.save()
+            # Adiciona uma mensagem de sucesso
+            messages.success(request, 'Transação atualizada com sucesso!')
+            return redirect('index')
+    else:
+        form = TransacaoForm(instance=transacao)
+    context = {
+        'form': form,
+        'transacao': transacao
+    }
+    return render(request, 'core/edit_transacao.html', context)
+
+@login_required
+def delete_transacao(request, pk):
+    transacao = get_object_or_404(Transacao, pk=pk, user=request.user)
+    if request.method == 'POST':
+        transacao.delete()
+        # Adiciona uma mensagem de sucesso
+        messages.success(request, 'Transação apagada com sucesso!')
+        return redirect('index')
+    
+    context = {
+        'transacao': transacao
+    }
+    return render(request, 'core/delete_confirm.html', context)
