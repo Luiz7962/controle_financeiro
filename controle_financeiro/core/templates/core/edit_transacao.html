@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Editar Transação</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 font-sans">
+    <div class="container mx-auto max-w-lg p-4 md:p-8 mt-10">
+        <div class="bg-white p-8 rounded-xl shadow-md">
+            <h1 class="text-3xl font-bold text-gray-800 mb-6">Editar Transação</h1>
+            <form method="post" class="space-y-4">
+                {% csrf_token %}
+                <!-- CAMPO DE DATA ADICIONADO -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">{{ form.data.label }}</label>
+                    {{ form.data }}
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">{{ form.descricao.label }}</label>
+                    {{ form.descricao }}
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">{{ form.valor.label }}</label>
+                    {{ form.valor }}
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">{{ form.tipo.label }}</label>
+                    {{ form.tipo }}
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">{{ form.categoria.label }}</label>
+                    {{ form.categoria }}
+                </div>
+                <div class="flex items-center justify-end space-x-4 pt-4">
+                    <a href="{% url 'index' %}" class="text-gray-600 hover:text-gray-800">Cancelar</a>
+                    <button type="submit" class="bg-blue-600 text-white font-bold py-2 px-5 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-300">
+                        Salvar Alterações
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</body>
+</html>

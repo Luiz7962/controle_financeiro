@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Relatórios Financeiros</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 font-sans">
+
+    <div class="container mx-auto max-w-4xl p-4 md:p-8">
+
+        <!-- Cabeçalho com link para voltar -->
+        <div class="flex justify-between items-center mb-6">
+            <h1 class="text-4xl font-bold text-gray-800">Relatórios</h1>
+            <a href="{% url 'index' %}" class="bg-indigo-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-indigo-700 transition-colors">Voltar</a>
+        </div>
+
+        <div class="bg-white p-6 rounded-xl shadow-md">
+            <h2 class="text-2xl font-semibold text-gray-800 mb-4">Gráfico de Gastos por Categoria</h2>
+            
+            {% if grafico %}
+                <!-- Exibe a imagem do gráfico gerada na view -->
+                <div class="mb-8">
+                    <img src="data:image/png;base64,{{ grafico }}" alt="Gráfico de gastos por categoria" class="w-full h-auto rounded-lg">
+                </div>
+
+                <h2 class="text-2xl font-semibold text-gray-800 mb-4">Tabela de Gastos</h2>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full bg-white">
+                        <thead class="bg-gray-200">
+                            <tr>
+                                <th class="py-2 px-4 text-left">Categoria</th>
+                                <th class="py-2 px-4 text-right">Total Gasto (R$)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for gasto in gastos_por_categoria %}
+                            <tr class="border-b">
+                                <td class="py-2 px-4">{{ gasto.categoria }}</td>
+                                <td class="py-2 px-4 text-right font-mono text-red-600">R$ {{ gasto.total|floatformat:2 }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <p class="text-gray-500 text-center py-8">Não há dados de despesas suficientes para gerar um relatório.</p>
+            {% endif %}
+        </div>
+    </div>
+
+</body>
+</html>
