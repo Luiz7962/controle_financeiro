@@ -1,0 +1,9 @@
+# .gitignore
+
+# Ficheiros de documentos
+*.doc
+*.docx
+*.pdf
+
+# Ficheiros com segredos
+meus_segredos.txt

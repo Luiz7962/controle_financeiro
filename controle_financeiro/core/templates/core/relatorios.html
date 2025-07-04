@@ -5,18 +5,19 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Relatórios Financeiros</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 1. Incluir a biblioteca Chart.js a partir de uma CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body class="bg-gray-100 font-sans">
 
     <div class="container mx-auto max-w-4xl p-4 md:p-8">
 
-        <!-- Cabeçalho com link para voltar -->
         <div class="flex justify-between items-center mb-6">
             <h1 class="text-4xl font-bold text-gray-800">Relatórios</h1>
             <a href="{% url 'index' %}" class="bg-indigo-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-indigo-700 transition-colors">Voltar</a>
         </div>
 
-        <!-- FORMULÁRIO DE FILTRO ADICIONADO -->
+        <!-- Formulário de Filtro (sem alterações) -->
         <div class="bg-white p-6 rounded-xl shadow-md mb-8">
             <form method="get" class="flex flex-col md:flex-row items-center gap-4">
                 <div class="w-full md:w-1/3">
@@ -30,7 +31,7 @@
                 <div class="w-full md:w-1/3">
                     <label for="mes" class="block text-sm font-medium text-gray-700">Mês</label>
                     <select name="mes" id="mes" class="mt-1 block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
-                        {% for i in "123456789"|make_list|slice:":12" %}
+                        {% for i in "abcdefghijkl" %}
                             <option value="{{ forloop.counter }}" {% if forloop.counter == mes_selecionado %}selected{% endif %}>
                                 {% if forloop.counter == 1 %}Janeiro{% elif forloop.counter == 2 %}Fevereiro{% elif forloop.counter == 3 %}Março{% elif forloop.counter == 4 %}Abril{% elif forloop.counter == 5 %}Maio{% elif forloop.counter == 6 %}Junho{% elif forloop.counter == 7 %}Julho{% elif forloop.counter == 8 %}Agosto{% elif forloop.counter == 9 %}Setembro{% elif forloop.counter == 10 %}Outubro{% elif forloop.counter == 11 %}Novembro{% elif forloop.counter == 12 %}Dezembro{% endif %}
                             </option>
@@ -44,14 +45,15 @@
         </div>
 
         <div class="bg-white p-6 rounded-xl shadow-md">
-            <h2 class="text-2xl font-semibold text-gray-800 mb-4">Gráfico de Gastos por Categoria</h2>
+            <h2 class="text-2xl font-semibold text-gray-800 mb-4">Análise de Gastos</h2>
             
-            {% if grafico %}
+            {% if gastos_por_categoria %}
+                <!-- 2. Área onde o gráfico será desenhado -->
                 <div class="mb-8">
-                    <img src="data:image/png;base64,{{ grafico }}" alt="Gráfico de gastos por categoria" class="w-full h-auto rounded-lg">
+                    <canvas id="meuGraficoDeBarras"></canvas>
                 </div>
 
-                <h2 class="text-2xl font-semibold text-gray-800 mb-4">Tabela de Gastos</h2>
+                <!-- Tabela de dados (sem alterações) -->
                 <div class="overflow-x-auto">
                     <table class="min-w-full bg-white">
                         <thead class="bg-gray-200">
@@ -75,6 +77,55 @@
             {% endif %}
         </div>
     </div>
+
+    <!-- 3. Script para criar o gráfico -->
+    {% if gastos_por_categoria %}
+    <script>
+        const ctx = document.getElementById('meuGraficoDeBarras').getContext('2d');
+        
+        // Usamos os dados JSON passados pela view do Django.
+        // O filtro `|safe` é crucial para que o HTML interprete o JSON corretamente.
+        const labels = {{ categorias_json|safe }};
+        const data = {
+            labels: labels,
+            datasets: [{
+                label: 'Total Gasto (R$)',
+                data: {{ totais_json|safe }},
+                backgroundColor: 'rgba(79, 70, 229, 0.8)',
+                borderColor: 'rgba(79, 70, 229, 1)',
+                borderWidth: 1
+            }]
+        };
+
+        const config = {
+            type: 'bar', // Tipo de gráfico
+            data: data,
+            options: {
+                indexAxis: 'y', // Transforma em gráfico de barras horizontais
+                responsive: true,
+                plugins: {
+                    legend: {
+                        display: false // Esconde a legenda, pois o título é suficiente
+                    },
+                    title: {
+                        display: true,
+                        text: 'Gastos por Categoria - {{ periodo_selecionado }}',
+                        font: {
+                            size: 18
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        beginAtZero: true
+                    }
+                }
+            }
+        };
+
+        const meuGrafico = new Chart(ctx, config);
+    </script>
+    {% endif %}
 
 </body>
 </html>

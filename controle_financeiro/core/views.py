@@ -6,12 +6,8 @@ from django.db.models import Sum
 from .models import Transacao
 from .forms import TransacaoForm
 from decimal import Decimal
-from datetime import datetime # Importe o datetime
-
-# Imports para geração de gráficos
-import matplotlib.pyplot as plt
-import io
-import base64
+from datetime import datetime
+import json # Importe a biblioteca JSON
 
 # --- Views de Autenticação e Transação (sem alterações) ---
 def register(request):
@@ -77,21 +73,14 @@ def delete_transacao(request, pk):
     }
     return render(request, 'core/delete_confirm.html', context)
 
-# --- VIEW DE RELATÓRIOS ATUALIZADA COM FILTROS ---
+# --- VIEW DE RELATÓRIOS ATUALIZADA PARA USAR CHART.JS ---
 @login_required
 def relatorios(request):
-    """
-    Gera e exibe um relatório de despesas por categoria, com filtros por mês e ano.
-    """
-    # 1. Obter o ano e mês atuais como padrão
     ano_atual = datetime.now().year
     mes_atual = datetime.now().month
-
-    # 2. Obter os valores do filtro do formulário (se existirem)
     ano_selecionado = request.GET.get('ano', ano_atual)
     mes_selecionado = request.GET.get('mes', mes_atual)
 
-    # 3. Filtrar as despesas do usuário pelo ano e mês selecionados
     despesas = Transacao.objects.filter(
         user=request.user, 
         tipo='Despesa',
@@ -99,41 +88,26 @@ def relatorios(request):
         data__month=mes_selecionado
     )
     
-    # 4. Agrupar por categoria e somar os valores
     gastos_por_categoria = despesas.values('categoria').annotate(total=Sum('valor')).order_by('-total')
 
-    # 5. Preparar dados para o gráfico
+    # 1. Preparar os dados para o gráfico
     categorias = [item['categoria'] for item in gastos_por_categoria]
-    totais = [float(item['total']) for item in gastos_por_categoria] # Converter Decimal para float para o gráfico
+    totais = [float(item['total']) for item in gastos_por_categoria]
 
-    grafico = None
-    if totais:
-        # 6. Gerar o gráfico com Matplotlib
-        plt.switch_backend('Agg')
-        fig, ax = plt.subplots(figsize=(10, 6))
-        ax.barh(categorias, totais, color='#4F46E5')
-        ax.set_title(f'Gastos por Categoria - {mes_selecionado}/{ano_selecionado}', fontsize=16)
-        ax.set_xlabel('Total Gasto (R$)')
-        ax.invert_yaxis()
-        plt.tight_layout()
+    # 2. Converter os dados para o formato JSON, que o JavaScript pode ler
+    categorias_json = json.dumps(categorias)
+    totais_json = json.dumps(totais)
 
-        # 7. Converter o gráfico para uma imagem em memória
-        buffer = io.BytesIO()
-        plt.savefig(buffer, format='png')
-        buffer.seek(0)
-        imagem_base64 = base64.b64encode(buffer.getvalue()).decode('utf-8')
-        plt.close(fig)
-        grafico = imagem_base64
-
-    # Criar lista de anos para o dropdown (desde o primeiro registro até o ano atual)
     primeiro_ano = Transacao.objects.filter(user=request.user).order_by('data').first()
     anos_disponiveis = range(primeiro_ano.data.year, ano_atual + 1) if primeiro_ano else [ano_atual]
     
     context = {
         'gastos_por_categoria': gastos_por_categoria,
-        'grafico': grafico,
+        'categorias_json': categorias_json, # Passa os dados para o JavaScript
+        'totais_json': totais_json,         # Passa os dados para o JavaScript
         'anos': anos_disponiveis,
         'ano_selecionado': int(ano_selecionado),
         'mes_selecionado': int(mes_selecionado),
+        'periodo_selecionado': f'{int(mes_selecionado):02d}/{ano_selecionado}'
     }
     return render(request, 'core/relatorios.html', context)
