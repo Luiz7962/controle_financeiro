@@ -6,13 +6,14 @@ from django.db.models import Sum
 from .models import Transacao
 from .forms import TransacaoForm
 from decimal import Decimal
+from datetime import datetime # Importe o datetime
 
 # Imports para geração de gráficos
 import matplotlib.pyplot as plt
 import io
 import base64
 
-# --- Views de Autenticação (sem alterações) ---
+# --- Views de Autenticação e Transação (sem alterações) ---
 def register(request):
     if request.method == 'POST':
         form = UserCreationForm(request.POST)
@@ -24,7 +25,6 @@ def register(request):
         form = UserCreationForm()
     return render(request, 'registration/register.html', {'form': form})
 
-# --- Views de Transação (sem alterações) ---
 @login_required
 def index(request):
     if request.method == 'POST':
@@ -77,42 +77,63 @@ def delete_transacao(request, pk):
     }
     return render(request, 'core/delete_confirm.html', context)
 
-# --- NOVA VIEW DE RELATÓRIOS ---
+# --- VIEW DE RELATÓRIOS ATUALIZADA COM FILTROS ---
 @login_required
 def relatorios(request):
     """
-    Gera e exibe um relatório de despesas por categoria.
+    Gera e exibe um relatório de despesas por categoria, com filtros por mês e ano.
     """
-    # 1. Filtra as despesas do usuário logado
-    despesas = Transacao.objects.filter(user=request.user, tipo='Despesa')
+    # 1. Obter o ano e mês atuais como padrão
+    ano_atual = datetime.now().year
+    mes_atual = datetime.now().month
+
+    # 2. Obter os valores do filtro do formulário (se existirem)
+    ano_selecionado = request.GET.get('ano', ano_atual)
+    mes_selecionado = request.GET.get('mes', mes_atual)
+
+    # 3. Filtrar as despesas do usuário pelo ano e mês selecionados
+    despesas = Transacao.objects.filter(
+        user=request.user, 
+        tipo='Despesa',
+        data__year=ano_selecionado,
+        data__month=mes_selecionado
+    )
     
-    # 2. Agrupa por categoria e soma os valores
-    # O resultado será um QuerySet de dicionários, ex: [{'categoria': 'Lazer', 'total': 150.00}, ...]
+    # 4. Agrupar por categoria e somar os valores
     gastos_por_categoria = despesas.values('categoria').annotate(total=Sum('valor')).order_by('-total')
 
-    # 3. Prepara os dados para o gráfico
+    # 5. Preparar dados para o gráfico
     categorias = [item['categoria'] for item in gastos_por_categoria]
-    totais = [item['total'] for item in gastos_por_categoria]
+    totais = [float(item['total']) for item in gastos_por_categoria] # Converter Decimal para float para o gráfico
 
-    # 4. Gera o gráfico com Matplotlib
-    plt.switch_backend('Agg') # Necessário para rodar em um servidor sem interface gráfica
-    fig, ax = plt.subplots(figsize=(10, 6))
-    ax.barh(categorias, totais, color='#4F46E5') # Gráfico de barras horizontais
-    ax.set_title('Gastos por Categoria', fontsize=16)
-    ax.set_xlabel('Total Gasto (R$)')
-    ax.invert_yaxis() # A categoria com maior gasto fica no topo
-    plt.tight_layout()
+    grafico = None
+    if totais:
+        # 6. Gerar o gráfico com Matplotlib
+        plt.switch_backend('Agg')
+        fig, ax = plt.subplots(figsize=(10, 6))
+        ax.barh(categorias, totais, color='#4F46E5')
+        ax.set_title(f'Gastos por Categoria - {mes_selecionado}/{ano_selecionado}', fontsize=16)
+        ax.set_xlabel('Total Gasto (R$)')
+        ax.invert_yaxis()
+        plt.tight_layout()
 
-    # 5. Converte o gráfico para uma imagem em memória
-    buffer = io.BytesIO()
-    plt.savefig(buffer, format='png')
-    buffer.seek(0)
-    # Codifica a imagem em base64 para embutir no HTML
-    imagem_base64 = base64.b64encode(buffer.getvalue()).decode('utf-8')
-    plt.close(fig)
+        # 7. Converter o gráfico para uma imagem em memória
+        buffer = io.BytesIO()
+        plt.savefig(buffer, format='png')
+        buffer.seek(0)
+        imagem_base64 = base64.b64encode(buffer.getvalue()).decode('utf-8')
+        plt.close(fig)
+        grafico = imagem_base64
 
+    # Criar lista de anos para o dropdown (desde o primeiro registro até o ano atual)
+    primeiro_ano = Transacao.objects.filter(user=request.user).order_by('data').first()
+    anos_disponiveis = range(primeiro_ano.data.year, ano_atual + 1) if primeiro_ano else [ano_atual]
+    
     context = {
         'gastos_por_categoria': gastos_por_categoria,
-        'grafico': imagem_base64,
+        'grafico': grafico,
+        'anos': anos_disponiveis,
+        'ano_selecionado': int(ano_selecionado),
+        'mes_selecionado': int(mes_selecionado),
     }
     return render(request, 'core/relatorios.html', context)
